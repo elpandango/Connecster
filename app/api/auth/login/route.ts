@@ -7,8 +7,9 @@ import jwt from "jsonwebtoken";
 export async function POST(req: Request) {
   await connectToDB();
   const {email, password} = await req.json();
-
   const user = await UserModel.findOne({email});
+  const cookieAge = 60 * 60 * 24 * 7;
+
   if (!user) {
     return NextResponse.json({error: "A user with this email could not be found."}, {status: 404});
   }
@@ -27,10 +28,18 @@ export async function POST(req: Request) {
     {expiresIn: '1y'}
   );
 
-  return NextResponse.json(
-    {
-      token,
-      userId: user._id.toString(),
-    }
-  );
+  const response = NextResponse.json({
+    message: "Login successful",
+    userId: user._id.toString(),
+  });
+
+  response.cookies.set('auth_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: cookieAge,
+    path: '/',
+  });
+
+  return response;
 }
